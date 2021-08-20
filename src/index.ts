@@ -201,7 +201,7 @@ function setInterfaceElements (
   matchedInterface.getProperties().forEach((prop: PropertySignature) => {
     // Set param type definition and description
     const isOptional = prop.getStructure().hasQuestionToken
-    
+
     const typeDef = inttype ? `${inttype}[${prop.getName()}]` : prop.getName()
     const documentationComments = prop.getJsDocs().map((node) => node.getInnerText()).join()
     const description = documentationComments
@@ -211,7 +211,7 @@ function setInterfaceElements (
     // Set property type as a string
     const propTypeName = prop.getType().getText()
     const typeEnum = getPropTypeEnum(prop)
-    
+
     const propLabel = getPropLabel(typeEnum, propTypeName)
     const typeDefNested = values.nest ? `${values.nest}[${typeDef}]` : typeDef
     // Set the element
