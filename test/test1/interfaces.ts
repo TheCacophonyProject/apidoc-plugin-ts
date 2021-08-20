@@ -4,11 +4,11 @@ export interface Employer {
   /**
    * The job title string
    */
-  jobTitle: string
+  jobTitle?: string
   /**
    * The IPerson Interface
    */
-  person: Person
+  person?: Person
   /**
    * An array of ISkill interfaces
    */

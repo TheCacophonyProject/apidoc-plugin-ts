@@ -1,59 +1,60 @@
 {
-  "name": "@geoblink/apidoc-plugin-ts",
-  "version": "1.0.3",
-  "description": "A plugin for apidoc leveraging TypeScript interfaces.",
-  "main": "dist/index.js",
-  "files": [
-    "dist/"
-  ],
-  "scripts": {
-    "apidoc": "apidoc -i test/ -o test/out",
-    "copy:plugin": "rm -rf node_modules/apidoc-plugin-ts && ln -s ../../ node_modules/apidoc-plugin-ts",
-    "lint": "tslint --project tsconfig.json",
-    "test": "yarn test-no-compile",
-    "test-no-compile": "cd test && mocha test.ts --opts='./mocha.opts'; cd ..",
-    "build": "rm -rf dist && tsc -p src/tsconfig.json",
-    "prepublishOnly": "run-s build lint test",
-    "pretest": "rm -rf test/out && run-s build copy:plugin"
-  },
-  "authors": [
-    "Tom Grey",
-    "Geoblink"
-  ],
-  "license": "MIT",
-  "engines": {
-    "node": ">=6"
-  },
-  "bugs": {
-    "url": "https://github.com/geoblink/apidoc-plugin-ts/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/geoblink/apidoc-plugin-ts.git"
-  },
-  "keywords": [
-    "apidoc",
-    "apidoc plugin",
-    "typescript"
-  ],
-  "peerDependencies": {
-    "apidoc": "^0.17.7"
-  },
-  "devDependencies": {
-    "@types/chai": "^4.1.7",
-    "@types/mocha": "^5.2.7",
-    "@types/node": "^13.1.0",
-    "apidoc": "^0.17.7",
-    "chai": "^4.2.0",
-    "copyfiles": "^2.1.0",
-    "mocha": "^6.1.4",
-    "npm-run-all": "^4.1.5",
-    "ts-node": "^8.3.0",
-    "tslint": "^5.18.0",
-    "tslint-config-standard": "^8.0.1"
-  },
-  "dependencies": {
-    "ts-morph": "3.1.0",
-    "typescript": "3.5.2"
-  }
+    "name": "@cutls/apidoc-plugin-ts",
+    "version": "1.0.3",
+    "description": "A plugin for apidoc leveraging TypeScript interfaces.",
+    "main": "dist/index.js",
+    "files": [
+        "dist/"
+    ],
+    "scripts": {
+        "apidoc": "apidoc -i test/ -o test/out",
+        "copy:plugin": "rm -rf node_modules/apidoc-plugin-ts && ln -s ../../ node_modules/apidoc-plugin-ts",
+        "lint": "tslint --project tsconfig.json",
+        "test": "yarn test-no-compile",
+        "test-no-compile": "cd test && mocha test.ts --opts='./mocha.opts'; cd ..",
+        "build": "rm -rf dist && tsc -p src/tsconfig.json",
+        "prepublishOnly": "run-s build lint test",
+        "pretest": "rm -rf test/out && run-s build copy:plugin"
+    },
+    "authors": [
+        "Tom Grey",
+        "Geoblink",
+        "Cutls"
+    ],
+    "license": "MIT",
+    "engines": {
+        "node": ">=6"
+    },
+    "bugs": {
+        "url": "https://github.com/cutls/apidoc-plugin-ts/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/cutls/apidoc-plugin-ts.git"
+    },
+    "keywords": [
+        "apidoc",
+        "apidoc plugin",
+        "typescript"
+    ],
+    "peerDependencies": {
+        "apidoc": "^0.17.7"
+    },
+    "devDependencies": {
+        "@types/chai": "^4.1.7",
+        "@types/mocha": "^5.2.7",
+        "@types/node": "^13.1.0",
+        "apidoc": "^0.17.7",
+        "chai": "^4.2.0",
+        "copyfiles": "^2.1.0",
+        "mocha": "^6.1.4",
+        "npm-run-all": "^4.1.5",
+        "ts-node": "^8.3.0",
+        "tslint": "^5.18.0",
+        "tslint-config-standard": "^8.0.1"
+    },
+    "dependencies": {
+        "ts-morph": "3.1.0",
+        "typescript": "3.5.2"
+    }
 }

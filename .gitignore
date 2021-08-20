@@ -37,3 +37,4 @@ Thumbs.db
 /spec/**/*.js.map
 /src/**/*.d.ts
 /src/**/*.js.map
+yarn-error.log

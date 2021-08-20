@@ -126,6 +126,7 @@ interface ParseResult {
   element: string
   interface: string
   path: string
+  nest?: string
 }
 
 interface ArrayMatch {
@@ -147,15 +148,16 @@ enum PropType {
 function parse (content: string): ParseResult | null {
   if (content.length === 0) return null
 
-  const parseRegExp = /^(?:\((.+?)\)){0,1}\s*\{(.+?)\}\s*(?:(.+))?/g
+  const parseRegExp = /^(?:\((.+?)\)){0,1}\s*\{(.+?)\}\s*(?:\[(.+?)\]){0,1}\s*(?:(.+))?/g
   const matches = parseRegExp.exec(content)
 
   if (!matches) return null
 
   return {
-    element: matches[3] || 'apiSuccess',
+    element: matches[4] || 'apiSuccess',
     interface: matches[2],
-    path: matches[1]
+    path: matches[1],
+    nest: matches[3]
   }
 }
 
@@ -195,11 +197,12 @@ function setInterfaceElements (
 ) {
   // If this is an extended interface
   extendInterface.call(this, matchedInterface, filename, newElements, values, inttype)
-
   // Iterate over interface properties
   matchedInterface.getProperties().forEach((prop: PropertySignature) => {
     // Set param type definition and description
-    const typeDef = inttype ? `${inttype}.${prop.getName()}` : prop.getName()
+    const isOptional = prop.getStructure().hasQuestionToken
+    
+    const typeDef = inttype ? `${inttype}[${prop.getName()}]` : prop.getName()
     const documentationComments = prop.getJsDocs().map((node) => node.getInnerText()).join()
     const description = documentationComments
       ? `\`${typeDef}\` - ${documentationComments}`
@@ -208,9 +211,11 @@ function setInterfaceElements (
     // Set property type as a string
     const propTypeName = prop.getType().getText()
     const typeEnum = getPropTypeEnum(prop)
+    
     const propLabel = getPropLabel(typeEnum, propTypeName)
+    const typeDefNested = values.nest ? `${values.nest}[${typeDef}]` : typeDef
     // Set the element
-    newElements.push(getApiSuccessElement(`{${propLabel}} ${typeDef} ${description}`))
+    newElements.push(getApiSuccessElement(`{${propLabel}} ${isOptional ? '[' : ''}${typeDefNested}${isOptional ? ']' : ''} ${description}`))
 
     // If property is an object or interface then we need to also display the objects properties
     if ([PropType.Object, PropType.Array].includes(typeEnum)) {
