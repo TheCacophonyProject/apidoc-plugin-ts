@@ -1,102 +1,95 @@
-[
-  {
-    "type": "get",
-    "url": "/api/:id",
-    "title": "",
-    "parameter": {
-      "fields": {
-        "Parameter": [
-          {
-            "group": "Parameter",
-            "type": "SquareConfig",
-            "optional": false,
-            "field": "id",
-            "description": "<p>Unique ID.</p>"
-          }
-        ]
-      }
+[{
+        "type": "get",
+        "url": "/api/:id",
+        "title": "",
+        "parameter": {
+            "fields": {
+                "Parameter": [{
+                    "group": "Parameter",
+                    "type": "SquareConfig",
+                    "optional": false,
+                    "field": "id",
+                    "description": "<p>Unique ID.</p>"
+                }]
+            }
+        },
+        "success": {
+            "fields": {
+                "Success 200": [{
+                        "group": "Success 200",
+                        "type": "Object[]",
+                        "optional": false,
+                        "field": "squareConfigs",
+                        "description": "<p>squareConfigs</p>"
+                    },
+                    {
+                        "group": "Success 200",
+                        "type": "String",
+                        "optional": false,
+                        "field": "squareConfigs[color]",
+                        "description": "<p><code>squareConfigs[color]</code></p>"
+                    },
+                    {
+                        "group": "Success 200",
+                        "type": "Number",
+                        "optional": false,
+                        "field": "squareConfigs[width]",
+                        "description": "<p><code>squareConfigs[width]</code></p>"
+                    }
+                ]
+            }
+        },
+        "group": "arrayAsGenericsTest",
+        "version": "0.0.0",
+        "filename": "array-in-types/index.ts",
+        "groupTitle": "arrayAsGenericsTest",
+        "name": "GetApiId"
     },
-    "success": {
-      "fields": {
-        "Success 200": [
-          {
-            "group": "Success 200",
-            "type": "Object[]",
-            "optional": false,
-            "field": "squareConfigs",
-            "description": "<p>squareConfigs</p>"
-          },
-          {
-            "group": "Success 200",
-            "type": "String",
-            "optional": false,
-            "field": "squareConfigs.color",
-            "description": "<p><code>squareConfigs.color</code></p>"
-          },
-          {
-            "group": "Success 200",
-            "type": "Number",
-            "optional": false,
-            "field": "squareConfigs.width",
-            "description": "<p><code>squareConfigs.width</code></p>"
-          }
-        ]
-      }
-    },
-    "group": "arrayAsGenericsTest",
-    "version": "0.0.0",
-    "filename": "array-in-types/index.ts",
-    "groupTitle": "arrayAsGenericsTest",
-    "name": "GetApiId"
-  },
-  {
-    "type": "get",
-    "url": "/api/:id",
-    "title": "",
-    "parameter": {
-      "fields": {
-        "Parameter": [
-          {
-            "group": "Parameter",
-            "type": "SquareConfig",
-            "optional": false,
-            "field": "id",
-            "description": "<p>Unique ID.</p>"
-          }
-        ]
-      }
-    },
-    "success": {
-      "fields": {
-        "Success 200": [
-          {
-            "group": "Success 200",
-            "type": "Object[]",
-            "optional": false,
-            "field": "squareConfigs",
-            "description": "<p>squareConfigs</p>"
-          },
-          {
-            "group": "Success 200",
-            "type": "String",
-            "optional": false,
-            "field": "squareConfigs.color",
-            "description": "<p><code>squareConfigs.color</code></p>"
-          },
-          {
-            "group": "Success 200",
-            "type": "Number",
-            "optional": false,
-            "field": "squareConfigs.width",
-            "description": "<p><code>squareConfigs.width</code></p>"
-          }
-        ]
-      }
-    },
-    "group": "arrayWithBracketsTest",
-    "version": "0.0.0",
-    "filename": "array-in-types/index.ts",
-    "groupTitle": "arrayWithBracketsTest",
-    "name": "GetApiId"
-  }
+    {
+        "type": "get",
+        "url": "/api/:id",
+        "title": "",
+        "parameter": {
+            "fields": {
+                "Parameter": [{
+                    "group": "Parameter",
+                    "type": "SquareConfig",
+                    "optional": false,
+                    "field": "id",
+                    "description": "<p>Unique ID.</p>"
+                }]
+            }
+        },
+        "success": {
+            "fields": {
+                "Success 200": [{
+                        "group": "Success 200",
+                        "type": "Object[]",
+                        "optional": false,
+                        "field": "squareConfigs",
+                        "description": "<p>squareConfigs</p>"
+                    },
+                    {
+                        "group": "Success 200",
+                        "type": "String",
+                        "optional": false,
+                        "field": "squareConfigs[color]",
+                        "description": "<p><code>squareConfigs[color]</code></p>"
+                    },
+                    {
+                        "group": "Success 200",
+                        "type": "Number",
+                        "optional": false,
+                        "field": "squareConfigs[width]",
+                        "description": "<p><code>squareConfigs[width]</code></p>"
+                    }
+                ]
+            }
+        },
+        "group": "arrayWithBracketsTest",
+        "version": "0.0.0",
+        "filename": "array-in-types/index.ts",
+        "groupTitle": "arrayWithBracketsTest",
+        "name": "GetApiId"
+    }
 ]

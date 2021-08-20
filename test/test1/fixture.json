@@ -54,22 +54,22 @@
                         "group": "Success 200",
                         "type": "Number",
                         "optional": false,
-                        "field": "picks.stats.totalGoals",
-                        "description": "<p><code>picks.stats.totalGoals</code></p>"
+                        "field": "picks.stats[totalGoals]",
+                        "description": "<p><code>picks.stats[totalGoals]</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "Number",
                         "optional": false,
-                        "field": "picks.stats.timesBenched",
-                        "description": "<p><code>picks.stats.timesBenched</code></p>"
+                        "field": "picks.stats[timesBenched]",
+                        "description": "<p><code>picks.stats[timesBenched]</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "Number",
                         "optional": false,
-                        "field": "picks.stats.timesCaptained",
-                        "description": "<p><code>picks.stats.timesCaptained</code></p>"
+                        "field": "picks.stats[timesCaptained]",
+                        "description": "<p><code>picks.stats[timesCaptained]</code></p>"
                     }
                 ]
             }

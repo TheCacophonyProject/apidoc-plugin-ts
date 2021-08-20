@@ -90,28 +90,28 @@ export interface PlayerStats {
 export interface SearchResult {
   data: SearchAttributes
   highlight: any
-  org?: {
+  org: {
     id: string
     fullname: string
   }
-  workspace?: {
+  workspace: {
     id: string
     fullname: string
   }
-  parentMission?: {
+  parentMission: {
     id: string
     title: string
   }
-  ref?: {
+  ref: {
     id: string
     title: string
   }
-  room?: {
+  room: {
     _id: string
     id: string
     name: string
   }
-  user?: {
+  user: {
     id: string
     nickname: string
     avatar: string
