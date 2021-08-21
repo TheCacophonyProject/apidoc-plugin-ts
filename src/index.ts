@@ -226,7 +226,6 @@ function setInterfaceElements (
       const objectProperties = arrayType
         ? arrayType.getProperties()
         : prop.getType().getProperties()
-        
 
       if (typeInterface) {
         setInterfaceElements.call(this, typeInterface, filename, newElements, values, typeDef)
@@ -273,7 +272,6 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
     const isOptional = text.match(/^["'a-z_A-Z0-9]+\s*\?\s*:/)
     const propName = property.getName()
     const typeDefLabel = `${typeDef}.${propName}`
-    this.log.warn(`Cutls ${typeDefLabel}`)
     const propType = valueDeclaration.getType().getText(valueDeclaration)
 
     const isUserDefinedProperty = isUserDefinedSymbol(property.compilerSymbol)
