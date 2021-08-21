@@ -45,7 +45,7 @@ export interface Person {
 }
 
 export interface Skill {
-  description: string
+  description: string // description
   level: number
 }
 

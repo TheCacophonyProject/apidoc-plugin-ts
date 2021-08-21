@@ -276,8 +276,9 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
 
     const isUserDefinedProperty = isUserDefinedSymbol(property.compilerSymbol)
     if (!isUserDefinedProperty) return // We don't want to include default members in the docs
-
-    const documentationComments = property.compilerSymbol.getDocumentationComment(undefined).map((node) => node.text).join()
+    const largeComment = property.compilerSymbol.getDocumentationComment(undefined).map((node) => node.text).join()
+    const shortComment = valueDeclaration.getTrailingCommentRanges().map((node) => node.getText().replace(/^\/\/\s*/, '').replace(/^\/\*.+\*\\\s*$/, '')).join()
+    const documentationComments = shortComment ? shortComment : largeComment
 
     const desc = documentationComments
       ? `\`${typeDef}.${propName}\` - ${documentationComments}`

@@ -525,7 +525,7 @@
                         "type": "String",
                         "optional": false,
                         "field": "skills.description",
-                        "description": "<p><code>skills.description</code></p>"
+                        "description": "<p><code>skills.description</code> - description</p>"
                     },
                     {
                         "group": "Success 200",
