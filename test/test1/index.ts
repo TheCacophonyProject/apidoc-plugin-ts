@@ -5,7 +5,7 @@ interface SquareConfig {
 
 /**
  * @api {get} /api/:id
- * @apiInterface {SquareConfig}
+ * @apiParam {SquareConfig} id Unique ID.
  * @apiInterface {SquareConfig}
  * @apiGroup localInterfaceTest
  */

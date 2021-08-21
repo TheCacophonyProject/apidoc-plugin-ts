@@ -4,7 +4,7 @@ import { Project as Ast, InterfaceDeclaration, PropertySignature, Symbol, Source
 
 export const APIDOC_PLUGIN_TS_CUSTOM_ELEMENT_NAME = 'apiinterface'
 
-const definitionFilesAddedByUser: {[key: string]: boolean} = {}
+const definitionFilesAddedByUser: { [key: string]: boolean } = {}
 
 namespace Apidoc {
   export enum AvailableHook {
@@ -172,11 +172,11 @@ function parse (content: string): ParseResult | null {
  * @param inttype
  */
 function setArrayElements (
-    matchedInterface: InterfaceDeclaration,
-    filename: string,
-    newElements: Apidoc.Element[],
-    values: ParseResult,
-    inttype?: string
+  matchedInterface: InterfaceDeclaration,
+  filename: string,
+  newElements: Apidoc.Element[],
+  values: ParseResult,
+  inttype?: string
 ) {
   const name = values.element
   newElements.push(getApiSuccessElement(`{Object[]} ${name} ${name}`, values.isApiParam))
@@ -205,7 +205,9 @@ function setInterfaceElements (
     const isOptional = prop.getStructure().hasQuestionToken
 
     const typeDef = inttype ? `${inttype}.${prop.getName()}` : prop.getName()
-    const documentationComments = prop.getJsDocs().map((node) => node.getInnerText()).join()
+    const largeComment = prop.getJsDocs().map((node) => node.getInnerText()).join()
+    const shortComment = prop.getTrailingCommentRanges().map((node) => node.getText().replace(/^\/\/\s*/, '').replace(/^\/\*.+\*\\\s*$/, '')).join()
+    const documentationComments = shortComment ? shortComment : largeComment
     const description = documentationComments
       ? `\`${typeDef}\` - ${documentationComments}`
       : `\`${typeDef}\``
@@ -378,17 +380,20 @@ function extendInterface (
 }
 
 function getApiSuccessElement (param: string | number, isApiParam?: boolean): Apidoc.Element {
-  if(isApiParam) return {
-    content: `${param}\n`,
-    name: 'apiparam',
-    source: `@apiParam ${param}\n`,
-    sourceName: 'apiParam'
-  }
-  else return {
-    content: `${param}\n`,
-    name: 'apisuccess',
-    source: `@apiSuccess ${param}\n`,
-    sourceName: 'apiSuccess'
+  if (isApiParam) {
+    return {
+      content: `${param}\n`,
+      name: 'apiparam',
+      source: `@apiParam ${param}\n`,
+      sourceName: 'apiParam'
+    }
+  } else {
+    return {
+      content: `${param}\n`,
+      name: 'apisuccess',
+      source: `@apiSuccess ${param}\n`,
+      sourceName: 'apiSuccess'
+    }
   }
 }
 
