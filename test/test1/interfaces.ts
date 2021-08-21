@@ -36,7 +36,7 @@ export interface Person {
     /**
      * Postcode
      */
-    postcode: number
+    postcode?: number
     /**
      * Location
      */

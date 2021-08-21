@@ -54,22 +54,22 @@
                         "group": "Success 200",
                         "type": "Number",
                         "optional": false,
-                        "field": "picks.stats[totalGoals]",
-                        "description": "<p><code>picks.stats[totalGoals]</code></p>"
+                        "field": "picks.stats.totalGoals",
+                        "description": "<p><code>picks.stats.totalGoals</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "Number",
                         "optional": false,
-                        "field": "picks.stats[timesBenched]",
-                        "description": "<p><code>picks.stats[timesBenched]</code></p>"
+                        "field": "picks.stats.timesBenched",
+                        "description": "<p><code>picks.stats.timesBenched</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "Number",
                         "optional": false,
-                        "field": "picks.stats[timesCaptained]",
-                        "description": "<p><code>picks.stats[timesCaptained]</code></p>"
+                        "field": "picks.stats.timesCaptained",
+                        "description": "<p><code>picks.stats.timesCaptained</code></p>"
                     }
                 ]
             }
@@ -156,35 +156,35 @@
                     {
                         "group": "Success 200",
                         "type": "String",
-                        "optional": false,
+                        "optional": true,
                         "field": "data.organizationId",
                         "description": "<p><code>data.organizationId</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "String",
-                        "optional": false,
+                        "optional": true,
                         "field": "data.workspaceId",
                         "description": "<p><code>data.workspaceId</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "String",
-                        "optional": false,
+                        "optional": true,
                         "field": "data.referenceId",
                         "description": "<p><code>data.referenceId</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "String",
-                        "optional": false,
+                        "optional": true,
                         "field": "data.referenceType",
                         "description": "<p><code>data.referenceType</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "Any",
-                        "optional": false,
+                        "optional": true,
                         "field": "data.ext",
                         "description": "<p><code>data.ext</code></p>"
                     },
@@ -467,7 +467,7 @@
                     {
                         "group": "Success 200",
                         "type": "Number",
-                        "optional": false,
+                        "optional": true,
                         "field": "person.address.postcode",
                         "description": "<p><code>person.address.postcode</code> - Postcode</p>"
                     },

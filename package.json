@@ -1,6 +1,6 @@
 {
     "name": "@cutls/apidoc-plugin-ts",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "A plugin for apidoc leveraging TypeScript interfaces.",
     "main": "dist/index.js",
     "files": [

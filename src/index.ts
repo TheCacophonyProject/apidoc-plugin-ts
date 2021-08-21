@@ -202,7 +202,7 @@ function setInterfaceElements (
     // Set param type definition and description
     const isOptional = prop.getStructure().hasQuestionToken
 
-    const typeDef = inttype ? `${inttype}[${prop.getName()}]` : prop.getName()
+    const typeDef = inttype ? `${inttype}.${prop.getName()}` : prop.getName()
     const documentationComments = prop.getJsDocs().map((node) => node.getInnerText()).join()
     const description = documentationComments
       ? `\`${typeDef}\` - ${documentationComments}`
@@ -213,7 +213,7 @@ function setInterfaceElements (
     const typeEnum = getPropTypeEnum(prop)
 
     const propLabel = getPropLabel(typeEnum, propTypeName)
-    const typeDefNested = values.nest ? `${values.nest}[${typeDef}]` : typeDef
+    const typeDefNested = values.nest ? `${values.nest}.${typeDef}` : typeDef
     // Set the element
     newElements.push(getApiSuccessElement(`{${propLabel}} ${isOptional ? '[' : ''}${typeDefNested}${isOptional ? ']' : ''} ${description}`))
 
@@ -226,6 +226,7 @@ function setInterfaceElements (
       const objectProperties = arrayType
         ? arrayType.getProperties()
         : prop.getType().getProperties()
+        
 
       if (typeInterface) {
         setInterfaceElements.call(this, typeInterface, filename, newElements, values, typeDef)
@@ -268,9 +269,11 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
   properties.forEach((property) => {
     const valueDeclaration = property.getValueDeclaration()
     if (!valueDeclaration) return
-
+    const text = valueDeclaration.getText().replace(' ', '')
+    const isOptional = text.match(/^["'a-z_A-Z0-9]+\s*\?\s*:/)
     const propName = property.getName()
     const typeDefLabel = `${typeDef}.${propName}`
+    this.log.warn(`Cutls ${typeDefLabel}`)
     const propType = valueDeclaration.getType().getText(valueDeclaration)
 
     const isUserDefinedProperty = isUserDefinedSymbol(property.compilerSymbol)
@@ -284,17 +287,17 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
 
     // Nothing to do if prop is of native type
     if (isNativeType(propType)) {
-      newElements.push(getApiSuccessElement(`{${getCapitalized(propType)}} ${typeDefLabel} ${desc}`))
+      newElements.push(getApiSuccessElement(`{${getCapitalized(propType)}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`))
       return
     }
 
     const isEnum = valueDeclaration.getType().isEnum()
     if (isEnum) {
-      newElements.push(getApiSuccessElement(`{Enum} ${typeDefLabel} ${desc}`))
+      newElements.push(getApiSuccessElement(`{Enum} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`))
       return
     }
 
-    const newElement = getApiSuccessElement(`{Object${propType.includes('[]') ? '[]' : ''}} ${typeDefLabel} ${desc}`)
+    const newElement = getApiSuccessElement(`{Object${propType.includes('[]') ? '[]' : ''}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`)
     newElements.push(newElement)
 
     // If property is an object or interface then we need to also display the objects properties

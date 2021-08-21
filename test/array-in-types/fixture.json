@@ -26,15 +26,15 @@
                         "group": "Success 200",
                         "type": "String",
                         "optional": false,
-                        "field": "squareConfigs[color]",
-                        "description": "<p><code>squareConfigs[color]</code></p>"
+                        "field": "squareConfigs.color",
+                        "description": "<p><code>squareConfigs.color</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "Number",
                         "optional": false,
-                        "field": "squareConfigs[width]",
-                        "description": "<p><code>squareConfigs[width]</code></p>"
+                        "field": "squareConfigs.width",
+                        "description": "<p><code>squareConfigs.width</code></p>"
                     }
                 ]
             }
@@ -73,15 +73,15 @@
                         "group": "Success 200",
                         "type": "String",
                         "optional": false,
-                        "field": "squareConfigs[color]",
-                        "description": "<p><code>squareConfigs[color]</code></p>"
+                        "field": "squareConfigs.color",
+                        "description": "<p><code>squareConfigs.color</code></p>"
                     },
                     {
                         "group": "Success 200",
                         "type": "Number",
                         "optional": false,
-                        "field": "squareConfigs[width]",
-                        "description": "<p><code>squareConfigs[width]</code></p>"
+                        "field": "squareConfigs.width",
+                        "description": "<p><code>squareConfigs.width</code></p>"
                     }
                 ]
             }
