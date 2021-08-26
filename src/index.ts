@@ -4,7 +4,7 @@ import { Project as Ast, InterfaceDeclaration, PropertySignature, Symbol, Source
 
 export const APIDOC_PLUGIN_TS_CUSTOM_ELEMENT_NAME = 'apiinterface'
 
-const definitionFilesAddedByUser: {[key: string]: boolean} = {}
+const definitionFilesAddedByUser: { [key: string]: boolean } = {}
 
 namespace Apidoc {
   export enum AvailableHook {
@@ -127,6 +127,7 @@ interface ParseResult {
   interface: string
   path: string
   nest?: string
+  isApiParam: boolean
 }
 
 interface ArrayMatch {
@@ -148,16 +149,17 @@ enum PropType {
 function parse (content: string): ParseResult | null {
   if (content.length === 0) return null
 
-  const parseRegExp = /^(?:\((.+?)\)){0,1}\s*\{(.+?)\}\s*(?:\[(.+?)\]){0,1}\s*(?:(.+))?/g
+  const parseRegExp = /^(?:\((.+?)\)){0,1}\s*(\+\+)?\{(.+?)\}\s*(?:\[(.+?)\]){0,1}\s*(?:(.+))?/g
   const matches = parseRegExp.exec(content)
 
   if (!matches) return null
 
   return {
-    element: matches[4] || 'apiSuccess',
-    interface: matches[2],
+    element: matches[5] || 'apiSuccess',
+    interface: matches[3],
     path: matches[1],
-    nest: matches[3]
+    nest: matches[4],
+    isApiParam: !!matches[2]
   }
 }
 
@@ -170,14 +172,14 @@ function parse (content: string): ParseResult | null {
  * @param inttype
  */
 function setArrayElements (
-    matchedInterface: InterfaceDeclaration,
-    filename: string,
-    newElements: Apidoc.Element[],
-    values: ParseResult,
-    inttype?: string
+  matchedInterface: InterfaceDeclaration,
+  filename: string,
+  newElements: Apidoc.Element[],
+  values: ParseResult,
+  inttype?: string
 ) {
   const name = values.element
-  newElements.push(getApiSuccessElement(`{Object[]} ${name} ${name}`))
+  newElements.push(getApiSuccessElement(`{Object[]} ${name} ${name}`, values.isApiParam))
   setInterfaceElements.call(this, matchedInterface, filename, newElements, values, name)
 }
 /**
@@ -202,8 +204,10 @@ function setInterfaceElements (
     // Set param type definition and description
     const isOptional = prop.getStructure().hasQuestionToken
 
-    const typeDef = inttype ? `${inttype}[${prop.getName()}]` : prop.getName()
-    const documentationComments = prop.getJsDocs().map((node) => node.getInnerText()).join()
+    const typeDef = inttype ? `${inttype}.${prop.getName()}` : prop.getName()
+    const largeComment = prop.getJsDocs().map((node) => node.getInnerText()).join()
+    const shortComment = prop.getTrailingCommentRanges().map((node) => node.getText().replace(/^\/\/\s*/, '').replace(/^\/\*.+\*\\\s*$/, '')).join()
+    const documentationComments = shortComment ? shortComment : largeComment
     const description = documentationComments
       ? `\`${typeDef}\` - ${documentationComments}`
       : `\`${typeDef}\``
@@ -213,9 +217,9 @@ function setInterfaceElements (
     const typeEnum = getPropTypeEnum(prop)
 
     const propLabel = getPropLabel(typeEnum, propTypeName)
-    const typeDefNested = values.nest ? `${values.nest}[${typeDef}]` : typeDef
+    const typeDefNested = values.nest ? `${values.nest}.${typeDef}` : typeDef
     // Set the element
-    newElements.push(getApiSuccessElement(`{${propLabel}} ${isOptional ? '[' : ''}${typeDefNested}${isOptional ? ']' : ''} ${description}`))
+    newElements.push(getApiSuccessElement(`{${propLabel}} ${isOptional ? '[' : ''}${typeDefNested}${isOptional ? ']' : ''} ${description}`, values.isApiParam))
 
     // If property is an object or interface then we need to also display the objects properties
     if ([PropType.Object, PropType.Array].includes(typeEnum)) {
@@ -251,7 +255,7 @@ function setNativeElements (
 
   const propLabel = getCapitalized(values.interface)
   // Set the element
-  newElements.push(getApiSuccessElement(`{${propLabel}} ${values.element}`))
+  newElements.push(getApiSuccessElement(`{${propLabel}} ${values.element}`, values.isApiParam))
   return
 }
 
@@ -268,15 +272,17 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
   properties.forEach((property) => {
     const valueDeclaration = property.getValueDeclaration()
     if (!valueDeclaration) return
-
+    const text = valueDeclaration.getText().replace(' ', '')
+    const isOptional = text.match(/^["'a-z_A-Z0-9]+\s*\?\s*:/)
     const propName = property.getName()
     const typeDefLabel = `${typeDef}.${propName}`
     const propType = valueDeclaration.getType().getText(valueDeclaration)
 
     const isUserDefinedProperty = isUserDefinedSymbol(property.compilerSymbol)
     if (!isUserDefinedProperty) return // We don't want to include default members in the docs
-
-    const documentationComments = property.compilerSymbol.getDocumentationComment(undefined).map((node) => node.text).join()
+    const largeComment = property.compilerSymbol.getDocumentationComment(undefined).map((node) => node.text).join()
+    const shortComment = valueDeclaration.getTrailingCommentRanges().map((node) => node.getText().replace(/^\/\/\s*/, '').replace(/^\/\*.+\*\\\s*$/, '')).join()
+    const documentationComments = shortComment ? shortComment : largeComment
 
     const desc = documentationComments
       ? `\`${typeDef}.${propName}\` - ${documentationComments}`
@@ -284,17 +290,17 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
 
     // Nothing to do if prop is of native type
     if (isNativeType(propType)) {
-      newElements.push(getApiSuccessElement(`{${getCapitalized(propType)}} ${typeDefLabel} ${desc}`))
+      newElements.push(getApiSuccessElement(`{${getCapitalized(propType)}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.isApiParam))
       return
     }
 
     const isEnum = valueDeclaration.getType().isEnum()
     if (isEnum) {
-      newElements.push(getApiSuccessElement(`{Enum} ${typeDefLabel} ${desc}`))
+      newElements.push(getApiSuccessElement(`{Enum} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.isApiParam))
       return
     }
 
-    const newElement = getApiSuccessElement(`{Object${propType.includes('[]') ? '[]' : ''}} ${typeDefLabel} ${desc}`)
+    const newElement = getApiSuccessElement(`{Object${propType.includes('[]') ? '[]' : ''}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.isApiParam)
     newElements.push(newElement)
 
     // If property is an object or interface then we need to also display the objects properties
@@ -373,12 +379,21 @@ function extendInterface (
   }
 }
 
-function getApiSuccessElement (param: string | number): Apidoc.Element {
-  return {
-    content: `${param}\n`,
-    name: 'apisuccess',
-    source: `@apiSuccess ${param}\n`,
-    sourceName: 'apiSuccess'
+function getApiSuccessElement (param: string | number, isApiParam?: boolean): Apidoc.Element {
+  if (isApiParam) {
+    return {
+      content: `${param}\n`,
+      name: 'apiparam',
+      source: `@apiParam ${param}\n`,
+      sourceName: 'apiParam'
+    }
+  } else {
+    return {
+      content: `${param}\n`,
+      name: 'apisuccess',
+      source: `@apiSuccess ${param}\n`,
+      sourceName: 'apiSuccess'
+    }
   }
 }
 

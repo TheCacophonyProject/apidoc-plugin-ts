@@ -36,7 +36,7 @@ export interface Person {
     /**
      * Postcode
      */
-    postcode: number
+    postcode?: number
     /**
      * Location
      */
@@ -45,7 +45,7 @@ export interface Person {
 }
 
 export interface Skill {
-  description: string
+  description: string // description
   level: number
 }
 
