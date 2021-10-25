@@ -1,6 +1,14 @@
 import * as ts from 'typescript'
 import * as path from 'path'
-import { Project as Ast, InterfaceDeclaration, PropertySignature, Symbol, SourceFile, NamespaceDeclaration } from 'ts-morph'
+import * as fs from 'fs'
+import {
+  InterfaceDeclaration,
+  NamespaceDeclaration,
+  Project as Ast,
+  PropertySignature,
+  SourceFile,
+  Symbol
+} from 'ts-morph'
 
 export const APIDOC_PLUGIN_TS_CUSTOM_ELEMENT_NAME = 'apiinterface'
 
@@ -30,7 +38,7 @@ namespace Apidoc {
   ) => void
 }
 
-const ast = new Ast()
+let ast: Ast
 
 /**
  * Initialise plugin (add app hooks)
@@ -38,6 +46,18 @@ const ast = new Ast()
  */
 export function init (app: Apidoc.App) {
   app.addHook(Apidoc.AvailableHook['parser-find-elements'], parseElements.bind(app), 200)
+}
+
+function getTsConfigRelativeTo (filename: string): string {
+  let filePath = path.resolve(path.dirname(filename))
+  while (filePath) {
+    let tsConfig = `${filePath}/tsconfig.json`
+    if (fs.existsSync(tsConfig)) {
+      return tsConfig
+    }
+    filePath = path.resolve(filePath, '../')
+  }
+  return ''
 }
 
 /**
@@ -48,6 +68,13 @@ export function init (app: Apidoc.App) {
  * @param filename
  */
 function parseElements (elements: Apidoc.Element[], element: Apidoc.Element, block: string, filename: string) {
+  if (!ast) {
+    // Initialise the AST, finding the nearest tsconfig.json file to `filename`
+    ast = new Ast({
+      tsConfigFilePath: getTsConfigRelativeTo(filename),
+      addFilesFromTsConfig: false
+    })
+  }
 
   // We only want to do things with the instance of our custom element.
   if (element.name !== APIDOC_PLUGIN_TS_CUSTOM_ELEMENT_NAME) return
@@ -71,6 +98,8 @@ function parseElements (elements: Apidoc.Element[], element: Apidoc.Element, blo
   const namedInterface = values.interface.trim()
 
   // Get the file path to the interface
+
+  // TODO - resolve tsconfig path aliases
   const interfacePath = values.path ? path.resolve(path.dirname(filename), values.path.trim()) : filename
   const parentNamespace = parseDefinitionFiles.call(this, interfacePath)
   const { namespace, leafName } = extractNamespace.call(this, parentNamespace, namedInterface)
@@ -122,12 +151,19 @@ function parseInterface (elements: Apidoc.Element[], newElements: Apidoc.Element
   elements.push(...newElements)
 }
 
+enum ApiElement {
+  ApiSuccess = 'apiSuccess',
+  ApiBody = 'apiBody',
+  ApiParam = 'apiParam',
+  ApiQuery = 'apiQuery',
+  ApiError = 'apiError'
+}
+
 interface ParseResult {
-  element: string
+  element: ApiElement
   interface: string
   path: string
   nest?: string
-  isApiParam: boolean
 }
 
 interface ArrayMatch {
@@ -149,17 +185,26 @@ enum PropType {
 function parse (content: string): ParseResult | null {
   if (content.length === 0) return null
 
+  console.log('Matching', content)
   const parseRegExp = /^(?:\((.+?)\)){0,1}\s*(\+\+)?\{(.+?)\}\s*(?:\[(.+?)\]){0,1}\s*(?:(.+))?/g
   const matches = parseRegExp.exec(content)
 
   if (!matches) return null
-
+  let interfaceDef = matches[3]
+  let apiElement = 'apiSuccess'
+  if (interfaceDef.includes('::')) {
+    interfaceDef = interfaceDef.split('::')[1]
+    apiElement = matches[3].split('::')[0]
+  }
+  if (!(Object.values(ApiElement) as string[]).includes(apiElement)) {
+    console.log('Parse error - expected one of', ...Object.values(ApiElement))
+    return null
+  }
   return {
-    element: matches[5] || 'apiSuccess',
-    interface: matches[3],
+    element: apiElement as ApiElement,
+    interface: interfaceDef,
     path: matches[1],
-    nest: matches[4],
-    isApiParam: !!matches[2]
+    nest: matches[4]
   }
 }
 
@@ -179,7 +224,7 @@ function setArrayElements (
   inttype?: string
 ) {
   const name = values.element
-  newElements.push(getApiSuccessElement(`{Object[]} ${name} ${name}`, values.isApiParam))
+  newElements.push(getApiElement(`{Object[]} ${name} ${name}`, values.element))
   setInterfaceElements.call(this, matchedInterface, filename, newElements, values, name)
 }
 /**
@@ -216,10 +261,10 @@ function setInterfaceElements (
     const propTypeName = prop.getType().getText()
     const typeEnum = getPropTypeEnum(prop)
 
-    const propLabel = getPropLabel(typeEnum, propTypeName)
+    const propLabel = getPropLabel(prop, typeEnum, propTypeName)
     const typeDefNested = values.nest ? `${values.nest}.${typeDef}` : typeDef
     // Set the element
-    newElements.push(getApiSuccessElement(`{${propLabel}} ${isOptional ? '[' : ''}${typeDefNested}${isOptional ? ']' : ''} ${description}`, values.isApiParam))
+    newElements.push(getApiElement(`{${propLabel}} ${isOptional ? '[' : ''}${typeDefNested}${isOptional ? ']' : ''} ${description}`, values.element))
 
     // If property is an object or interface then we need to also display the objects properties
     if ([PropType.Object, PropType.Array].includes(typeEnum)) {
@@ -255,7 +300,7 @@ function setNativeElements (
 
   const propLabel = getCapitalized(values.interface)
   // Set the element
-  newElements.push(getApiSuccessElement(`{${propLabel}} ${values.element}`, values.isApiParam))
+  newElements.push(getApiElement(`{${propLabel}} ${values.element}`, values.element))
   return
 }
 
@@ -278,7 +323,8 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
     const typeDefLabel = `${typeDef}.${propName}`
     const propType = valueDeclaration.getType().getText(valueDeclaration)
 
-    const isUserDefinedProperty = isUserDefinedSymbol(property.compilerSymbol)
+    const declarationFile = property.compilerSymbol.valueDeclaration?.parent?.getSourceFile()
+    const isUserDefinedProperty = declarationFile && definitionFilesAddedByUser[declarationFile.fileName] || false
     if (!isUserDefinedProperty) return // We don't want to include default members in the docs
     const largeComment = property.compilerSymbol.getDocumentationComment(undefined).map((node) => node.text).join()
     const shortComment = valueDeclaration.getTrailingCommentRanges().map((node) => node.getText().replace(/^\/\/\s*/, '').replace(/^\/\*.+\*\\\s*$/, '')).join()
@@ -290,17 +336,17 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
 
     // Nothing to do if prop is of native type
     if (isNativeType(propType)) {
-      newElements.push(getApiSuccessElement(`{${getCapitalized(propType)}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.isApiParam))
+      newElements.push(getApiElement(`{${getCapitalized(propType)}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.element))
       return
     }
-
+    console.log('Value declaration', valueDeclaration.getType())
     const isEnum = valueDeclaration.getType().isEnum()
     if (isEnum) {
-      newElements.push(getApiSuccessElement(`{Enum} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.isApiParam))
+      newElements.push(getApiElement(`{Enum} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.element))
       return
     }
 
-    const newElement = getApiSuccessElement(`{Object${propType.includes('[]') ? '[]' : ''}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.isApiParam)
+    const newElement = getApiElement(`{Object${propType.includes('[]') ? '[]' : ''}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.element)
     newElements.push(newElement)
 
     // If property is an object or interface then we need to also display the objects properties
@@ -379,21 +425,12 @@ function extendInterface (
   }
 }
 
-function getApiSuccessElement (param: string | number, isApiParam?: boolean): Apidoc.Element {
-  if (isApiParam) {
-    return {
-      content: `${param}\n`,
-      name: 'apiparam',
-      source: `@apiParam ${param}\n`,
-      sourceName: 'apiParam'
-    }
-  } else {
-    return {
-      content: `${param}\n`,
-      name: 'apisuccess',
-      source: `@apiSuccess ${param}\n`,
-      sourceName: 'apiSuccess'
-    }
+function getApiElement (param: string | number, element: ApiElement): Apidoc.Element {
+  return {
+    content: `${param}\n`,
+    name: element.toLowerCase(),
+    source: `@${element} ${param}\n`,
+    sourceName: element
   }
 }
 
@@ -469,8 +506,7 @@ function isNativeType (propType: string): boolean {
 
 function getPropTypeEnum (prop: PropertySignature): PropType {
   const propType = prop.getType().getText()
-
-  const propTypeIsEnum = prop.getType().isEnum()
+  const propTypeIsEnum = prop.getType().isEnum() || prop.getType().isEnumLiteral()
   const propTypeIsObject = !propTypeIsEnum && !isNativeType(propType)
   const propTypeIsArray = propTypeIsObject && propType.includes('[]')
 
@@ -480,10 +516,35 @@ function getPropTypeEnum (prop: PropertySignature): PropType {
   return PropType.Native
 }
 
-function getPropLabel (typeEnum: PropType, propTypeName: string): string {
+function getPropLabel (prop: PropertySignature, typeEnum: PropType, propTypeName: string): string {
   if (typeEnum === PropType.Array) return 'Object[]'
   if (typeEnum === PropType.Object) return 'Object'
-  if (typeEnum === PropType.Enum) return 'Enum'
+  if (typeEnum === PropType.Enum) {
+    // If it's an enum, return the variants:
+    const variants: string[] = []
+    let allStrings = true
+    let allNumbers = true
+    for (const node of prop.getType().getSymbol()!.getDeclarations()) {
+      node.forEachChild((node) => {
+        node.forEachChild((node) => {
+          if (node.getKindName() === 'StringLiteral') {
+            allNumbers = false
+            variants.push(node.getText())
+          } else if (node.getKindName() === 'NumericLiteral') {
+            console.log(node.getKindName())
+            allStrings = false
+            variants.push(node.getText())
+          }
+        })
+      })
+    }
+    if (allStrings) {
+      return `String=${variants.join(',')}`
+    } else if (allNumbers) {
+      return `Number=${variants.join(',')}`
+    }
+    return 'Enum'
+  }
 
   return getCapitalized(propTypeName)
 }
@@ -497,9 +558,4 @@ function matchArrayInterface (interfaceName): ArrayMatch | null {
     full: interfaceName,
     interface: match[1]
   }
-}
-
-function isUserDefinedSymbol (symbol: ts.Symbol): boolean {
-  const declarationFile = symbol.valueDeclaration.parent.getSourceFile()
-  return definitionFilesAddedByUser[declarationFile.fileName]
 }
