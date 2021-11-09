@@ -67,7 +67,64 @@ function parseElements(elements, element, block, filename) {
         parseArray.call(this, elements, newElements, values, interfacePath, namespace, arrayMatch);
         return;
     }
-    parseInterface.call(this, elements, newElements, values, interfacePath, namespace, leafName);
+    if (parseInterface.call(this, elements, newElements, values, interfacePath, namespace, leafName) === false) {
+        var interfacePath_1 = resolvePathAlias(parentNamespace, namedInterface, filename);
+        if (interfacePath_1) {
+            var parentNamespace_1 = parseDefinitionFiles.call(this, interfacePath_1);
+            var _b = extractNamespace.call(this, parentNamespace_1, namedInterface), namespace_1 = _b.namespace, leafName_1 = _b.leafName;
+            parseInterface.call(this, elements, newElements, values, interfacePath_1, namespace_1, leafName_1);
+        }
+    }
+}
+function resolvePathAlias(parentNamespace, namedInterface, filename) {
+    if (parentNamespace) {
+        var p = parentNamespace;
+        var symbolsAndModules = p
+            .getImportDeclarations()
+            .map(function (v) { return [v.getImportClause(), v.getModuleSpecifier()]; })
+            .filter(function (v) { return v[0] !== undefined; })
+            .map(function (v) { return [v[0].getNamedImports().map(function (i) { return i.getSymbol(); }), v[1]]; });
+        for (var _i = 0, symbolsAndModules_1 = symbolsAndModules; _i < symbolsAndModules_1.length; _i++) {
+            var _a = symbolsAndModules_1[_i], symbols = _a[0], module_1 = _a[1];
+            if (Array.isArray(symbols)) {
+                var names = symbols.map(function (i) { return i.getEscapedName().trim(); });
+                if (names) {
+                    var found = names.includes(namedInterface);
+                    if (found) {
+                        var moduleAliasPath = module_1.getText().replace(/\"/g, '');
+                        if (moduleAliasPath.startsWith('@')) {
+                            var aliasParts = moduleAliasPath.split('/');
+                            var aliasStart = aliasParts.shift();
+                            var aliasEnd = aliasParts.join('/');
+                            var pathAliases = ast.getCompilerOptions().paths;
+                            if (pathAliases) {
+                                var fullResolvedPath = '';
+                                for (var _b = 0, _c = Object.entries(pathAliases); _b < _c.length; _b++) {
+                                    var _d = _c[_b], alias = _d[0], resolved = _d[1];
+                                    if (alias.startsWith(aliasStart) && alias.endsWith('*')) {
+                                        var rootPath = getTsConfigRelativeTo(filename).replace('tsconfig.json', '');
+                                        var resolvedPath = "" + rootPath + resolved[0].replace('*', aliasEnd);
+                                        if (fs.existsSync(resolvedPath)) {
+                                            fullResolvedPath = resolvedPath;
+                                        }
+                                        else if (fs.existsSync(resolvedPath + ".d.ts")) {
+                                            fullResolvedPath = resolvedPath + ".d.ts";
+                                        }
+                                        else if (fs.existsSync(resolvedPath + ".ts")) {
+                                            fullResolvedPath = resolvedPath + ".ts";
+                                        }
+                                        if (fullResolvedPath !== '') {
+                                            return path.resolve(fullResolvedPath);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 function parseNative(elements, newElements, interfacePath, values) {
     setNativeElements(interfacePath, newElements, values);
@@ -77,7 +134,7 @@ function parseArray(elements, newElements, values, interfacePath, namespace, arr
     var leafName = arrayMatch.interface;
     var matchedInterface = getNamespacedInterface(namespace, leafName);
     if (!matchedInterface) {
-        this.log.warn("Could not find interface \u00AB" + leafName + "\u00BB in file \u00AB" + interfacePath + "\u00BB");
+        this.log.warn("Could not find interface \u00AB" + leafName + "\u00BB in file \u00AB" + interfacePath + "\u00BB in namespace " + namespace);
         return;
     }
     setArrayElements.call(this, matchedInterface, interfacePath, newElements, values);
@@ -86,8 +143,7 @@ function parseArray(elements, newElements, values, interfacePath, namespace, arr
 function parseInterface(elements, newElements, values, interfacePath, namespace, leafName) {
     var matchedInterface = getNamespacedInterface(namespace, leafName);
     if (!matchedInterface) {
-        this.log.warn("Could not find interface \u00AB" + values.interface + "\u00BB in file \u00AB" + interfacePath + "\u00BB");
-        return;
+        return false;
     }
     setInterfaceElements.call(this, matchedInterface, interfacePath, newElements, values);
     elements.push.apply(elements, newElements);
@@ -110,7 +166,6 @@ var PropType;
 function parse(content) {
     if (content.length === 0)
         return null;
-    console.log('Matching', content);
     var parseRegExp = /^(?:\((.+?)\)){0,1}\s*(\+\+)?\{(.+?)\}\s*(?:\[(.+?)\]){0,1}\s*(?:(.+))?/g;
     var matches = parseRegExp.exec(content);
     if (!matches)
@@ -190,17 +245,23 @@ function setObjectElements(properties, filename, newElements, values, typeDef) {
         var isUserDefinedProperty = declarationFile && definitionFilesAddedByUser[declarationFile.fileName] || false;
         if (!isUserDefinedProperty)
             return;
-        var largeComment = property.compilerSymbol.getDocumentationComment(undefined).map(function (node) { return node.text; }).join();
+        var largeComment = '';
+        try {
+            largeComment = property.compilerSymbol.getDocumentationComment(undefined).map(function (node) { return node.text; }).join();
+        }
+        catch (e) {
+            largeComment = '';
+        }
         var shortComment = valueDeclaration.getTrailingCommentRanges().map(function (node) { return node.getText().replace(/^\/\/\s*/, '').replace(/^\/\*.+\*\\\s*$/, ''); }).join();
         var documentationComments = shortComment ? shortComment : largeComment;
         var desc = documentationComments
             ? "`" + typeDef + "." + propName + "` - " + documentationComments
             : "`" + typeDef + "." + propName + "`";
         if (isNativeType(propType)) {
-            newElements.push(getApiElement("{" + getCapitalized(propType) + "} " + (isOptional ? '[' : '') + typeDefLabel + (isOptional ? ']' : '') + " " + desc, values.element));
+            var el = getApiElement("{" + getCapitalized(propType) + "} " + (isOptional ? '[' : '') + typeDefLabel + (isOptional ? ']' : '') + " " + desc, values.element);
+            newElements.push(el);
             return;
         }
-        console.log('Value declaration', valueDeclaration.getType());
         var isEnum = valueDeclaration.getType().isEnum();
         if (isEnum) {
             newElements.push(getApiElement("{Enum} " + (isOptional ? '[' : '') + typeDefLabel + (isOptional ? ']' : '') + " " + desc, values.element));

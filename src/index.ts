@@ -2,11 +2,12 @@ import * as ts from 'typescript'
 import * as path from 'path'
 import * as fs from 'fs'
 import {
+  ImportClause,
   InterfaceDeclaration,
   NamespaceDeclaration,
   Project as Ast,
   PropertySignature,
-  SourceFile,
+  SourceFile, StringLiteral,
   Symbol
 } from 'ts-morph'
 
@@ -96,11 +97,9 @@ function parseElements (elements: Apidoc.Element[], element: Apidoc.Element, blo
 
   // The interface we are looking for
   const namedInterface = values.interface.trim()
-
   // Get the file path to the interface
-
-  // TODO - resolve tsconfig path aliases
   const interfacePath = values.path ? path.resolve(path.dirname(filename), values.path.trim()) : filename
+
   const parentNamespace = parseDefinitionFiles.call(this, interfacePath)
   const { namespace, leafName } = extractNamespace.call(this, parentNamespace, namedInterface)
 
@@ -113,8 +112,63 @@ function parseElements (elements: Apidoc.Element[], element: Apidoc.Element, blo
     parseArray.call(this, elements, newElements, values, interfacePath, namespace, arrayMatch)
     return
   }
-  parseInterface.call(this, elements, newElements, values, interfacePath, namespace, leafName)
+
+  if (parseInterface.call(this, elements, newElements, values, interfacePath, namespace, leafName) === false) {
+    const interfacePath = resolvePathAlias(parentNamespace, namedInterface, filename)
+    if (interfacePath) {
+      const parentNamespace = parseDefinitionFiles.call(this, interfacePath)
+      const { namespace, leafName } = extractNamespace.call(this, parentNamespace, namedInterface)
+      parseInterface.call(this, elements, newElements, values, interfacePath, namespace, leafName)
+    }
+  }
   // Does the interface exist in current file?
+}
+
+function resolvePathAlias (parentNamespace, namedInterface, filename) {
+  if (parentNamespace) {
+    const p = (parentNamespace as SourceFile)
+    const symbolsAndModules = p
+      .getImportDeclarations()
+      .map(v => [v.getImportClause(), v.getModuleSpecifier()])
+      .filter(v => v[0] !== undefined)
+      .map(v => [(v[0] as ImportClause).getNamedImports().map(i => i.getSymbol()), v[1]])
+    for (const [symbols, module] of symbolsAndModules) {
+      if (Array.isArray(symbols)) {
+        const names = symbols.map(i => (i as unknown as Symbol).getEscapedName().trim())
+        if (names) {
+          const found = (names as unknown[] as string[]).includes(namedInterface)
+          if (found) {
+            const moduleAliasPath = (module as StringLiteral).getText().replace(/\"/g, '')
+            if (moduleAliasPath.startsWith('@')) {
+              const aliasParts = moduleAliasPath.split('/')
+              const aliasStart = aliasParts.shift() as string
+              const aliasEnd = aliasParts.join('/')
+              const pathAliases = ast.getCompilerOptions().paths
+              if (pathAliases) {
+                let fullResolvedPath = ''
+                for (const [alias, resolved] of Object.entries(pathAliases)) {
+                  if (alias.startsWith(aliasStart) && alias.endsWith('*')) {
+                    const rootPath = getTsConfigRelativeTo(filename).replace('tsconfig.json', '')
+                    const resolvedPath = `${rootPath}${resolved[0].replace('*', aliasEnd)}`
+                    if (fs.existsSync(resolvedPath)) {
+                      fullResolvedPath = resolvedPath
+                    } else if (fs.existsSync(`${resolvedPath}.d.ts`)) {
+                      fullResolvedPath = `${resolvedPath}.d.ts`
+                    } else if (fs.existsSync(`${resolvedPath}.ts`)) {
+                      fullResolvedPath = `${resolvedPath}.ts`
+                    }
+                    if (fullResolvedPath !== '') {
+                      return path.resolve(fullResolvedPath)
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 function parseNative (elements: Apidoc.Element[], newElements: Apidoc.Element[], interfacePath: string, values: ParseResult) {
@@ -127,7 +181,7 @@ function parseArray (elements: Apidoc.Element[], newElements: Apidoc.Element[], 
   const leafName = arrayMatch.interface
   const matchedInterface = getNamespacedInterface(namespace, leafName)
   if (!matchedInterface) {
-    this.log.warn(`Could not find interface «${leafName}» in file «${interfacePath}»`)
+    this.log.warn(`Could not find interface «${leafName}» in file «${interfacePath}» in namespace ${namespace}`)
     return
   }
   setArrayElements.call(this, matchedInterface, interfacePath, newElements, values)
@@ -140,8 +194,8 @@ function parseInterface (elements: Apidoc.Element[], newElements: Apidoc.Element
 
   // If interface is not found, log error
   if (!matchedInterface) {
-    this.log.warn(`Could not find interface «${values.interface}» in file «${interfacePath}»`)
-    return
+    //this.log.warn(`!! Could not find interface «${values.interface}» in file «${interfacePath}»`)
+    return false
   }
 
   // Match elements of current interface
@@ -185,7 +239,6 @@ enum PropType {
 function parse (content: string): ParseResult | null {
   if (content.length === 0) return null
 
-  console.log('Matching', content)
   const parseRegExp = /^(?:\((.+?)\)){0,1}\s*(\+\+)?\{(.+?)\}\s*(?:\[(.+?)\]){0,1}\s*(?:(.+))?/g
   const matches = parseRegExp.exec(content)
 
@@ -269,8 +322,9 @@ function setInterfaceElements (
     // If property is an object or interface then we need to also display the objects properties
     if ([PropType.Object, PropType.Array].includes(typeEnum)) {
       // First determine if the object is an available interface
+      // console.log(typeEnum, propTypeName, typeDefNested)
+      // console.log(propLabel)
       const typeInterface = getInterface.call(this, filename, propTypeName)
-
       const arrayType = typeEnum === PropType.Array && prop.getType().getArrayElementType()
       const objectProperties = arrayType
         ? arrayType.getProperties()
@@ -279,6 +333,7 @@ function setInterfaceElements (
       if (typeInterface) {
         setInterfaceElements.call(this, typeInterface, filename, newElements, values, typeDef)
       } else {
+        // console.log('setObjectElements', objectProperties, filename, newElements, values, typeDef)
         setObjectElements.call(this, objectProperties, filename, newElements, values, typeDef)
       }
     }
@@ -322,24 +377,27 @@ function setObjectElements<NodeType extends ts.Node = ts.Node> (
     const propName = property.getName()
     const typeDefLabel = `${typeDef}.${propName}`
     const propType = valueDeclaration.getType().getText(valueDeclaration)
-
     const declarationFile = property.compilerSymbol.valueDeclaration?.parent?.getSourceFile()
     const isUserDefinedProperty = declarationFile && definitionFilesAddedByUser[declarationFile.fileName] || false
     if (!isUserDefinedProperty) return // We don't want to include default members in the docs
-    const largeComment = property.compilerSymbol.getDocumentationComment(undefined).map((node) => node.text).join()
+    let largeComment = ''
+    try {
+      largeComment = property.compilerSymbol.getDocumentationComment(undefined).map((node) => node.text).join()
+    } catch (e) {
+      largeComment = ''
+    }
     const shortComment = valueDeclaration.getTrailingCommentRanges().map((node) => node.getText().replace(/^\/\/\s*/, '').replace(/^\/\*.+\*\\\s*$/, '')).join()
     const documentationComments = shortComment ? shortComment : largeComment
-
     const desc = documentationComments
       ? `\`${typeDef}.${propName}\` - ${documentationComments}`
       : `\`${typeDef}.${propName}\``
 
     // Nothing to do if prop is of native type
     if (isNativeType(propType)) {
-      newElements.push(getApiElement(`{${getCapitalized(propType)}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.element))
+      const el = getApiElement(`{${getCapitalized(propType)}} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.element)
+      newElements.push(el)
       return
     }
-    console.log('Value declaration', valueDeclaration.getType())
     const isEnum = valueDeclaration.getType().isEnum()
     if (isEnum) {
       newElements.push(getApiElement(`{Enum} ${isOptional ? '[' : ''}${typeDefLabel}${isOptional ? ']' : ''} ${desc}`, values.element))
